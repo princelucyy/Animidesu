@@ -1,0 +1,59 @@
+name: Build desktop-web-iOS
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: web
+            command: flutter build web --release
+            artifact: build/web
+          - os: ubuntu-latest
+            platform: linux
+            command: flutter build linux --release
+            artifact: build/linux/x64/release/bundle
+          - os: windows-latest
+            platform: windows
+            command: flutter build windows --release
+            artifact: build/windows/x64/runner/Release
+          - os: macos-latest
+            platform: macos
+            command: flutter build macos --release
+            artifact: build/macos/Build/Products/Release
+          - os: macos-latest
+            platform: ios
+            command: flutter build ios --release --no-codesign
+            artifact: build/ios/iphoneos/Runner.app
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.47.0'
+          channel: stable
+          cache: true
+      - name: Generate ${{ matrix.platform }} platform
+        shell: bash
+        run: flutter create --platforms=${{ matrix.platform }} .
+      - name: Get dependencies
+        shell: bash
+        run: flutter pub get
+      - name: Analyze
+        shell: bash
+        run: flutter analyze
+      - name: Build ${{ matrix.platform }}
+        shell: bash
+        run: ${{ matrix.command }}
+      - name: Upload ${{ matrix.platform }} artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: animidesu-${{ matrix.platform }}
+          path: ${{ matrix.artifact }}
